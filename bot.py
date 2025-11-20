@@ -17,7 +17,7 @@ if not TOKEN:
     raise ValueError("Cant found TELEGRAM_BOT_TOKEN in environment variables.")
 
 # Paths and variables
-cookies_path = os.getenv('COOKIES_PATH', 'youtube.com_cookies.txt')
+cookies_path = os.getenv('COOKIES_PATH', 'cookies.txt')
 ffmpeg_path_from_env = os.getenv('FFMPEG_PATH')
 ffmpeg_path = ffmpeg_path_from_env if ffmpeg_path_from_env else '/usr/bin/ffmpeg'   # Default path for ffmpeg
 FFMPEG_IS_AVAILABLE = os.path.exists(ffmpeg_path) and os.access(ffmpeg_path, os.X_OK)   # Check if ffmpeg is available
