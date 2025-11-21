@@ -4,19 +4,9 @@ import asyncio
 import tempfile
 import shutil
 import json
-from telegram import (
-    Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
-)
-from telegram.ext import (
-    Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, BotCommand
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import yt_dlp
-
-# ==========================
-# LOGGING
-# ==========================
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 # ==========================
 # CONFIG
@@ -28,14 +18,19 @@ if not TOKEN:
 COOKIE_FILE = os.path.join(os.getcwd(), "cookies.txt")
 ffmpeg_path = os.getenv('FFMPEG_PATH', '/usr/bin/ffmpeg')
 FFMPEG_IS_AVAILABLE = os.path.exists(ffmpeg_path) and os.access(ffmpeg_path, os.X_OK)
-REQUIRED_CHANNEL = os.getenv("REQUIRED_CHANNEL", "@ytdlpdeveloper")
 TELEGRAM_FILE_SIZE_LIMIT_BYTES = 500 * 1024 * 1024
-TELEGRAM_FILE_SIZE_LIMIT_TEXT = "500 МБ"
+TELEGRAM_FILE_SIZE_LIMIT_TEXT = "500 MB"
 USER_LANGS_FILE = "user_languages.json"
 SEARCH_RESULTS_LIMIT = 10
 
 # ==========================
-# LANGUAGES
+# LOGGING
+# ==========================
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# ==========================
+# LANGUES
 # ==========================
 LANG_CODES = {"English": "en", "Français": "fr"}
 LANG_KEYBOARD = ReplyKeyboardMarkup([["English", "Français"]], resize_keyboard=True, one_time_keyboard=True)
@@ -44,89 +39,34 @@ user_langs = {}
 
 LANGUAGES = {
     "en": {
-        "start": (
-            "Hello! I am a bot for downloading audio and video from YouTube and SoundCloud.\n"
-            "Send a link or search for a track using /search.\n"
-            f"Subscribe to {REQUIRED_CHANNEL} to use the bot.\n"
-            "You can convert video to MP3 by clicking the button under the video."
-        ),
+        "start": "Hello! I am a bot for downloading audio and video.\nSend a link or search using /search.",
         "choose_lang": "Choose language:",
-        "not_subscribed": f"Please subscribe to {REQUIRED_CHANNEL} first.",
-        "checking": "Checking link...",
-        "not_youtube": "This link is not supported.",
-        "choose_download_type": "Choose download type:",
-        "audio_button_mp3": "🎵 MP3 (Audio)",
-        "video_button_mp4": "🎥 MP4 (Video)",
-        "downloading_audio": "Downloading audio... Please wait.",
-        "downloading_video": "Downloading video... Please wait.",
-        "download_progress": "Downloading: {percent} at {speed}, ETA ~{eta}",
-        "too_big": f"File too big (> {TELEGRAM_FILE_SIZE_LIMIT_TEXT})",
+        "search_prompt": "Enter a track or artist name:",
+        "choose_track": "Select a track:",
+        "downloading_selected_track": "Downloading selected track...",
+        "downloading_audio": "Downloading audio...",
+        "downloading_video": "Downloading video...",
         "done_audio": "Done! Audio sent.",
         "done_video": "Done! Video sent.",
         "error": "Something went wrong.",
-        "cancel_button": "Cancel",
-        "cancelling": "Cancelling download...",
-        "cancelled": "Download cancelled.",
-        "download_in_progress": "Another download is in progress.",
-        "already_cancelled_or_done": "Download already cancelled or completed.",
-        "url_error_generic": "Failed to process URL. Send a valid YouTube or SoundCloud link.",
-        "search_prompt": "Enter track or artist name, then click result to download.",
-        "searching": "Searching...",
-        "unsupported_url_in_search": "Unsupported link in search.",
-        "no_results": "Nothing found.",
-        "choose_track": "Select a track:",
-        "downloading_selected_track": "Downloading selected track...",
-        "copyright_pre": "⚠️ This may be protected by copyright. Personal use only.",
-        "copyright_post": "⚠️ Material may be copyrighted. Personal use only.",
-        "copyright_command": "⚠️ All downloads may be copyrighted. Contact copyrightytdlpbot@gmail.com to remove."
+        "too_big": f"File too big (> {TELEGRAM_FILE_SIZE_LIMIT_TEXT})",
+        "copyright_command": "⚠️ All downloads may be copyrighted."
     },
     "fr": {
-        "start": (
-            "Bonjour ! Je suis un bot pour télécharger audio et vidéo depuis YouTube et SoundCloud.\n"
-            "Envoyez un lien ou recherchez un titre avec /search.\n"
-            f"Abonnez-vous à {REQUIRED_CHANNEL} pour utiliser le bot.\n"
-            "Vous pouvez convertir la vidéo en MP3 avec le bouton sous la vidéo."
-        ),
+        "start": "Bonjour ! Je suis un bot pour télécharger audio et vidéo.\nEnvoyez un lien ou utilisez /search.",
         "choose_lang": "Choisissez la langue :",
-        "not_subscribed": f"Veuillez d'abord vous abonner à {REQUIRED_CHANNEL}.",
-        "checking": "Vérification du lien...",
-        "not_youtube": "Ce lien n'est pas supporté.",
-        "choose_download_type": "Choisissez le type de téléchargement :",
-        "audio_button_mp3": "🎵 MP3 (Audio)",
-        "video_button_mp4": "🎥 MP4 (Vidéo)",
-        "downloading_audio": "Téléchargement audio... Patientez.",
-        "downloading_video": "Téléchargement vidéo... Patientez.",
-        "download_progress": "Téléchargement : {percent} à {speed}, ETA ~{eta}",
-        "too_big": f"Fichier trop volumineux (> {TELEGRAM_FILE_SIZE_LIMIT_TEXT})",
+        "search_prompt": "Entrez le titre ou artiste :",
+        "choose_track": "Sélectionnez un titre :",
+        "downloading_selected_track": "Téléchargement du titre sélectionné...",
+        "downloading_audio": "Téléchargement audio...",
+        "downloading_video": "Téléchargement vidéo...",
         "done_audio": "Fait ! Audio envoyé.",
         "done_video": "Fait ! Vidéo envoyée.",
         "error": "Une erreur est survenue.",
-        "cancel_button": "Annuler",
-        "cancelling": "Annulation du téléchargement...",
-        "cancelled": "Téléchargement annulé.",
-        "download_in_progress": "Un téléchargement est déjà en cours.",
-        "already_cancelled_or_done": "Téléchargement déjà annulé ou terminé.",
-        "url_error_generic": "Impossible de traiter le lien. Envoyez un lien YouTube ou SoundCloud valide.",
-        "search_prompt": "Entrez le titre ou artiste, puis cliquez sur le résultat pour télécharger.",
-        "searching": "Recherche...",
-        "unsupported_url_in_search": "Lien non supporté dans la recherche.",
-        "no_results": "Aucun résultat.",
-        "choose_track": "Sélectionnez un titre :",
-        "downloading_selected_track": "Téléchargement du titre sélectionné...",
-        "copyright_pre": "⚠️ Ce contenu peut être protégé par copyright. Usage personnel uniquement.",
-        "copyright_post": "⚠️ Matériel potentiellement protégé par copyright. Usage personnel uniquement.",
-        "copyright_command": "⚠️ Tous les téléchargements peuvent être protégés par copyright. Contactez copyrightytdlpbot@gmail.com pour suppression."
+        "too_big": f"Fichier trop volumineux (> {TELEGRAM_FILE_SIZE_LIMIT_TEXT})",
+        "copyright_command": "⚠️ Tous les téléchargements peuvent être protégés par copyright."
     }
 }
-
-# ==========================
-# HELPERS
-# ==========================
-def get_user_lang(user_id):
-    return user_langs.get(user_id, "en")
-
-def is_soundcloud_url(url):
-    return "soundcloud.com/" in url.lower()
 
 def load_user_langs():
     global user_langs
@@ -143,57 +83,38 @@ def save_user_langs():
     with open(USER_LANGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(user_langs, f)
 
-def is_url(text):
-    text = text.lower().strip()
-    return (
-        text.startswith("http://") or text.startswith("https://")
-    ) and (
-        "youtube.com/" in text or "youtu.be/" in text or "soundcloud.com/" in text
-    )
+def get_user_lang(user_id):
+    return user_langs.get(user_id, "en")
 
 # ==========================
-# DOWNLOAD HANDLER
-# ==========================
-def blocking_yt_dlp_download(ydl_opts, url):
-    import yt_dlp.utils
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
-
-# ==========================
-# BOT COMMANDS
+# COMMANDS LANGUE
 # ==========================
 async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(LANGUAGES["en"]["choose_lang"], reply_markup=LANG_KEYBOARD)
+    await update.message.reply_text("Choose language / Choisissez la langue :", reply_markup=LANG_KEYBOARD)
 
 async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lang_name = update.message.text
-    lang_code = LANG_CODES.get(lang_name)
     user_id = update.effective_user.id
-    if lang_code:
-        user_langs[user_id] = lang_code
+    lang_name = update.message.text
+    if lang_name in LANG_CODES:
+        user_langs[user_id] = LANG_CODES[lang_name]
         save_user_langs()
-        texts = LANGUAGES[lang_code]
+        texts = LANGUAGES[LANG_CODES[lang_name]]
         await update.message.reply_text(texts["start"])
     else:
         await update.message.reply_text("Please choose a language from the keyboard.")
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await choose_language(update, context)
-
-async def copyright_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    lang = get_user_lang(user_id)
-    texts = LANGUAGES[lang]
-    await update.message.reply_text(texts["copyright_command"])
-
 # ==========================
-# SMART MESSAGE HANDLER (Audio + Video + Search)
+# SMART MESSAGE HANDLER
 # ==========================
+def is_url(text):
+    text = text.lower().strip()
+    return text.startswith("http://") or text.startswith("https://")
+
 async def smart_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
     user_id = update.effective_user.id
     lang = get_user_lang(user_id)
     texts = LANGUAGES[lang]
-    text = update.message.text.strip()
 
     if is_url(text):
         await ask_download_type(update, context, text)
@@ -201,7 +122,7 @@ async def smart_message_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await handle_search_query(update, context)
 
 # ==========================
-# DOWNLOAD TYPE SELECTION (Audio / Video)
+# DOWNLOAD TYPE
 # ==========================
 async def ask_download_type(update: Update, context: ContextTypes.DEFAULT_TYPE, url: str):
     user_id = update.effective_user.id
@@ -209,70 +130,42 @@ async def ask_download_type(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     texts = LANGUAGES[lang]
 
     context.user_data[f'url_for_download_{user_id}'] = url
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎵 MP3 (Audio)", callback_data=f"dl_audio_{user_id}")],
+        [InlineKeyboardButton("🎥 MP4 (Video)", callback_data=f"dl_video_{user_id}")]
+    ])
+    await update.message.reply_text(texts["choose_track"], reply_markup=keyboard)
 
-    if is_soundcloud_url(url):
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(texts["audio_button_mp3"], callback_data=f"dltype_audio_sc_{user_id}")]
-        ])
-    else:
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(texts["audio_button_mp3"], callback_data=f"dltype_audio_mp3_{user_id}")],
-            [InlineKeyboardButton(texts["video_button_mp4"], callback_data=f"dltype_video_mp4_{user_id}")]
-        ])
-    await update.message.reply_text(texts["choose_download_type"], reply_markup=keyboard)
-
-# ==========================
-# CALLBACK HANDLER FOR DOWNLOAD TYPE
-# ==========================
 async def select_download_type_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
-    try:
-        parts = query.data.split("_")
-        dtype = parts[1]
-        ftype = parts[2]
-        uid_cb = int(parts[3])
-        if user_id != uid_cb:
-            await query.edit_message_text("This button is not for you.")
-            return
-    except Exception:
-        await query.edit_message_text("Invalid selection. Try again.")
-        return
-
     url = context.user_data.pop(f'url_for_download_{user_id}', None)
     if not url:
-        await query.edit_message_text("URL not found. Try again.")
+        await query.edit_message_text("URL not found.")
         return
 
-    lang = get_user_lang(user_id)
-    texts = LANGUAGES[lang]
-
-    if dtype == "audio":
-        task = asyncio.create_task(download_audio(query, context, url, texts, user_id))
-    elif dtype == "video":
-        task = asyncio.create_task(download_video(query, context, url, texts, user_id))
-    else:
-        await query.edit_message_text("Unknown type.")
-        return
-
+    if query.data.startswith("dl_audio"):
+        task = asyncio.create_task(download_audio(query, context, url))
+    elif query.data.startswith("dl_video"):
+        task = asyncio.create_task(download_video(query, context, url))
     context.bot_data.setdefault('active_downloads', {})[user_id] = {'task': task}
 
 # ==========================
-# AUDIO DOWNLOAD
+# DOWNLOAD HANDLERS
 # ==========================
-async def download_audio(query, context, url, texts, user_id):
+def blocking_yt_dlp_download(ydl_opts, url):
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+
+async def download_audio(query, context, url):
     chat_id = query.message.chat_id
     temp_dir = tempfile.mkdtemp()
-    await query.edit_message_text(texts["downloading_audio"])
+    await query.edit_message_text("Downloading audio...")
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192'
-        }],
+        'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}],
         'quiet': True,
         'ffmpeg_location': ffmpeg_path if FFMPEG_IS_AVAILABLE else None
     }
@@ -281,50 +174,40 @@ async def download_audio(query, context, url, texts, user_id):
         files = os.listdir(temp_dir)
         for file in files:
             path = os.path.join(temp_dir, file)
-            size = os.path.getsize(path)
-            if size > TELEGRAM_FILE_SIZE_LIMIT_BYTES:
-                await context.bot.send_message(chat_id=chat_id, text=texts["too_big"])
+            if os.path.getsize(path) > TELEGRAM_FILE_SIZE_LIMIT_BYTES:
+                await context.bot.send_message(chat_id=chat_id, text="File too big")
                 continue
             with open(path, 'rb') as f:
                 await context.bot.send_audio(chat_id=chat_id, audio=f, filename=file)
-        await context.bot.send_message(chat_id=chat_id, text=texts["done_audio"])
+        await context.bot.send_message(chat_id=chat_id, text="Audio sent!")
     except Exception as e:
-        await context.bot.send_message(chat_id=chat_id, text=f"{texts['error']}: {e}")
+        await context.bot.send_message(chat_id=chat_id, text=f"Error: {e}")
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-# ==========================
-# VIDEO DOWNLOAD
-# ==========================
-async def download_video(query, context, url, texts, user_id):
+async def download_video(query, context, url):
     chat_id = query.message.chat_id
     temp_dir = tempfile.mkdtemp()
-    await query.edit_message_text(texts["downloading_video"])
-    ydl_opts = {
-        'format': 'bestvideo+bestaudio/best',
-        'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
-        'quiet': True,
-        'ffmpeg_location': ffmpeg_path if FFMPEG_IS_AVAILABLE else None
-    }
+    await query.edit_message_text("Downloading video...")
+    ydl_opts = {'format': 'bestvideo+bestaudio/best','outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),'quiet': True,'ffmpeg_location': ffmpeg_path if FFMPEG_IS_AVAILABLE else None}
     try:
         await asyncio.to_thread(blocking_yt_dlp_download, ydl_opts, url)
         files = os.listdir(temp_dir)
         for file in files:
             path = os.path.join(temp_dir, file)
-            size = os.path.getsize(path)
-            if size > TELEGRAM_FILE_SIZE_LIMIT_BYTES:
-                await context.bot.send_message(chat_id=chat_id, text=texts["too_big"])
+            if os.path.getsize(path) > TELEGRAM_FILE_SIZE_LIMIT_BYTES:
+                await context.bot.send_message(chat_id=chat_id, text="File too big")
                 continue
             with open(path, 'rb') as f:
                 await context.bot.send_video(chat_id=chat_id, video=f, filename=file)
-        await context.bot.send_message(chat_id=chat_id, text=texts["done_video"])
+        await context.bot.send_message(chat_id=chat_id, text="Video sent!")
     except Exception as e:
-        await context.bot.send_message(chat_id=chat_id, text=f"{texts['error']}: {e}")
+        await context.bot.send_message(chat_id=chat_id, text=f"Error: {e}")
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 # ==========================
-# SEARCH HANDLER
+# SEARCH
 # ==========================
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -335,8 +218,8 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from yt_dlp import YoutubeDL
-    query_text = update.message.text.strip()
     user_id = update.effective_user.id
+    query_text = update.message.text.strip()
     lang = get_user_lang(user_id)
     texts = LANGUAGES[lang]
 
@@ -348,11 +231,27 @@ async def handle_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not entries:
         await update.message.reply_text(texts["no_results"])
         return
-    keyboard = [
-        [InlineKeyboardButton(f"{idx+1}. {e.get('title')}", callback_data=f"dltype_audio_mp3_{user_id}")]
-        for idx, e in enumerate(entries)
-    ]
+    keyboard = [[InlineKeyboardButton(f"{idx+1}. {e.get('title')}", callback_data=f"searchsel_{user_id}_{e.get('id')}")] for idx, e in enumerate(entries)]
     await update.message.reply_text(texts["choose_track"], reply_markup=InlineKeyboardMarkup(keyboard))
+    context.user_data[f'search_results_{user_id}'] = {e.get('id'): e for e in entries}
+
+async def search_select_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    try:
+        _, sel_user_id, video_id = query.data.split("_", 2)
+        sel_user_id = int(sel_user_id)
+    except Exception:
+        await query.edit_message_text("Invalid selection.")
+        return
+    if user_id != sel_user_id:
+        await query.edit_message_text("This button is not for you.")
+        return
+    url = f"https://youtu.be/{video_id}"
+    await query.edit_message_text("Downloading selected track...", reply_markup=None)
+    task = asyncio.create_task(download_audio(query, context, url))
+    context.bot_data.setdefault('active_downloads', {})[user_id] = {'task': task}
 
 # ==========================
 # MAIN
@@ -360,23 +259,15 @@ async def handle_search_query(update: Update, context: ContextTypes.DEFAULT_TYPE
 def main():
     load_user_langs()
     app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("start", choose_language))
     app.add_handler(CommandHandler("languages", choose_language))
     app.add_handler(CommandHandler("search", search_command))
-    app.add_handler(CommandHandler("copyright", copyright_command))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, smart_message_handler))
+    app.add_handler(CommandHandler("copyright", lambda u,c: u.message.reply_text("⚠️ All downloads may be copyrighted.")))
     app.add_handler(MessageHandler(filters.Regex(f"^({'|'.join(LANG_CODES.keys())})$"), set_language))
-    app.add_handler(CallbackQueryHandler(select_download_type_callback, pattern="^dltype_"))
-    
-    async def set_commands(_):
-        await app.bot.set_my_commands([
-            BotCommand("start", "Start and choose language"),
-            BotCommand("languages", "Change language"),
-            BotCommand("search", "Search music/video (YouTube/SoundCloud)"),
-            BotCommand("copyright", "Copyright info")
-        ])
-    app.post_init = set_commands
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, smart_message_handler))
+    app.add_handler(CallbackQueryHandler(select_download_type_callback, pattern="^dl_"))
+    app.add_handler(CallbackQueryHandler(search_select_callback, pattern="^searchsel_"))
     app.run_polling()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
