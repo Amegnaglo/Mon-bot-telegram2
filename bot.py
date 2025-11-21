@@ -8,6 +8,7 @@ from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKe
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler # Import necessary Telegram bot handlers
 import yt_dlp # Import yt-dlp for downloading media
 
+
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -22,8 +23,8 @@ ffmpeg_path_from_env = os.getenv('FFMPEG_PATH')
 ffmpeg_path = ffmpeg_path_from_env if ffmpeg_path_from_env else '/usr/bin/ffmpeg'   # Default path for ffmpeg
 FFMPEG_IS_AVAILABLE = os.path.exists(ffmpeg_path) and os.access(ffmpeg_path, os.X_OK)   # Check if ffmpeg is available
 REQUIRED_CHANNEL = os.getenv("REQUIRED_CHANNEL", "@ytdlpdeveloper")    # Channel to which users must be subscribed
-TELEGRAM_FILE_SIZE_LIMIT_BYTES = 500 * 1024 * 1024 # 500 MB in bytes
-TELEGRAM_FILE_SIZE_LIMIT_TEXT = "500 МБ" # Text representation of the file size limit 
+TELEGRAM_FILE_SIZE_LIMIT_BYTES = 50 * 1024 * 1024 # 50 MB in bytes
+TELEGRAM_FILE_SIZE_LIMIT_TEXT = "50 МБ" # Text representation of the file size limit 
 # File to store user language preferences
 USER_LANGS_FILE = "user_languages.json" # File to store user language preferences
 # Keyboard for language selection # This keyboard will be shown to users when they start the bot or change language 
@@ -484,7 +485,7 @@ async def handle_download(update_or_query, context: ContextTypes.DEFAULT_TYPE, u
         ydl_opts = {
             'outtmpl': os.path.join(temp_dir, '%(title).140B - Made by @ytdlpload_bot Developed by BitSamurai [%(id)s].%(ext)s'),
             'format': 'bestaudio/best',
-            'cookiefile': COOKIE_FILE
+            'cookiefile': COOKIE_FILE if os.path.exists(COOKIE_FILE) else None,
             'progress_hooks': [progress_hook],
             'nocheckcertificate': True,
             'quiet': True,
