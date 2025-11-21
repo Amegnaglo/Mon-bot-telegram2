@@ -17,7 +17,7 @@ if not TOKEN:
     raise ValueError("Cant found TELEGRAM_BOT_TOKEN in environment variables.")
 
 # Paths and variables
-cookies_path = os.getenv('COOKIES_PATH', 'cookies.txt')
+COOKIE_FILE = os.path.join(os.getcwd(), "cookies.txt")
 ffmpeg_path_from_env = os.getenv('FFMPEG_PATH')
 ffmpeg_path = ffmpeg_path_from_env if ffmpeg_path_from_env else '/usr/bin/ffmpeg'   # Default path for ffmpeg
 FFMPEG_IS_AVAILABLE = os.path.exists(ffmpeg_path) and os.access(ffmpeg_path, os.X_OK)   # Check if ffmpeg is available
@@ -328,7 +328,7 @@ def get_user_lang(user_id):
     lang = user_langs.get(user_id)
     if lang in LANGUAGES:
         return lang
-    return "ru"
+    return "en"
 
 def is_soundcloud_url(url):
     """
@@ -364,7 +364,7 @@ async def choose_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     logger.info(f"User {update.effective_user.id} requested language choice.")
     await update.message.reply_text(
-        LANGUAGES["ru"]["choose_lang"], # Use Russian text by default for language selection.
+        LANGUAGES["en"]["choose_lang"], # Use Russian text by default for language selection.
         reply_markup=LANG_KEYBOARD
     )
 
@@ -484,7 +484,7 @@ async def handle_download(update_or_query, context: ContextTypes.DEFAULT_TYPE, u
         ydl_opts = {
             'outtmpl': os.path.join(temp_dir, '%(title).140B - Made by @ytdlpload_bot Developed by BitSamurai [%(id)s].%(ext)s'),
             'format': 'bestaudio/best',
-            'cookiefile': cookies_path if os.path.exists(cookies_path) else None,
+            'cookiefile': COOKIE_FILE
             'progress_hooks': [progress_hook],
             'nocheckcertificate': True,
             'quiet': True,
