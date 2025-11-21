@@ -167,8 +167,8 @@ async def download_audio(query, context, url):
         'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
         'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}],
         'quiet': True,
-        'ffmpeg_location': ffmpeg_path if FFMPEG_IS_AVAILABLE else None
-         'cookiefile': COOKIE_FILE  # <-- Ajouter ceci
+        'ffmpeg_location': ffmpeg_path if FFMPEG_IS_AVAILABLE else None,
+         'cookiefile': COOKIE_FILE  # <-- Ajouter ceci<
     }
     try:
         await asyncio.to_thread(blocking_yt_dlp_download, ydl_opts, url)
