@@ -1,19 +1,3 @@
-Omess Video/Audio Downloader Bot
-
-Features:
-
-- Language selection (English / Français)
-
-- Audio download (MP3)
-
-- Video download (MP4) with quality selection
-
-- Search YouTube
-
-- Works with direct URLs
-
-- Works on Render with proper logs and download tracking
-
 import os import logging import asyncio import tempfile import shutil import json from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, BotCommand from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters import yt_dlp
 
 ==========================
